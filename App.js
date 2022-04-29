@@ -1,20 +1,31 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
-
+import { NavigationContainer } from "@react-navigation/native";
+import { StatusBar } from "expo-status-bar";
+import { StyleSheet, Text, View, SafeAreaView } from "react-native";
+import StockItem from "./components/StockItem";
+import Navigation from "./navigation";
+import "react-native-gesture-handler";
+import PortfolioProvider from "./Contexts/PortfolioContext";
 export default function App() {
   return (
-    <View style={styles.container}>
-      <Text>Open up App.js to start working on your app!</Text>
-      <StatusBar style="auto" />
-    </View>
+    <NavigationContainer
+      theme={{
+        colors: {
+          background: "#121212",
+        },
+      }}
+    >
+      <PortfolioProvider>
+        <View style={styles.container}>
+          <Navigation />
+        </View>
+      </PortfolioProvider>
+    </NavigationContainer>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    backgroundColor: "#121212",
     flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 });
