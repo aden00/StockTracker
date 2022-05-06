@@ -7,6 +7,9 @@ import {
   Keyboard,
   FlatList,
   ScrollView,
+  SafeAreaView,
+  Modal,
+  Pressable,
 } from "react-native";
 import React, { useEffect, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
@@ -21,6 +24,9 @@ import {
 } from "../../services/requests";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import PortfolioItem from "../../components/PortfolioItem";
+import { LogBox } from "react-native";
+import { Entypo } from "@expo/vector-icons";
+
 const PortfolioScreen = () => {
   const navigation = useNavigation();
   const {
@@ -32,40 +38,34 @@ const PortfolioScreen = () => {
   const [portfolioItemsPriceDetails, setPortfolioItemsPriceDetails] = useState(
     []
   );
-  const setPriceState = async (res) => {
-    return new Promise((resolve) => {
-      setPortfolioItemsPriceDetails(res);
+  const [currentBalance, setCurrentBalance] = useState(0);
+  const [boughtBalance, setBoughtBalance] = useState(0);
+  const [allTimeChange, setAllTimeChange] = useState(0);
+  const [allTimePercentage, setAllTimePercentage] = useState(0);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [finishCaluculating, setFinishCaluculating] = useState(false);
+  const calculateCurrentBalance = (priceList) => {
+    let currentBalance = 0;
+    priceList?.forEach((element, index) => {
+      //slice the price from $300 to 300
+      currentBalance +=
+        parseFloat(element.lastSalePrice.slice(1)) *
+        parseFloat(portfolioItems[index].quantityPurchased);
     });
-  };
-  const getPortfolioItemsPriceDetails = async () => {
-    // if (portfolioItemsPriceDetails?.length !== 0) {
-
-    //   return;
-    // }
-    const res = await getMultipleStocksPriceAndPercentChange(portfolioItems);
-    await setPriceState(res);
+    setCurrentBalance(parseFloat(currentBalance.toFixed(2)));
+    return parseFloat(currentBalance.toFixed(2));
   };
 
-  const getCurrentBalance = () => {
-    portfolioItems.forEach((currentPortfolioItem, index) => {
-      console.log(index);
-      console.log(portfolioItemsPriceDetails);
+  const calculateBoughtBalance = () => {
+    let boughtBalance = 0;
+    portfolioItems.forEach((element, index) => {
+      //slice the price from $300 to 300
+      boughtBalance +=
+        parseFloat(element.boughtPrice) * parseFloat(element.quantityPurchased);
     });
+    setBoughtBalance(parseFloat(boughtBalance.toFixed(2)));
+    return parseFloat(boughtBalance.toFixed(2));
   };
-  // portfolioItems
-  //   .reduce(
-  //     (total, currentPortfolioItem) =>
-  //       total +
-  //       currentPortfolioItem?.quantityPurchased *
-  //         parseFloat(
-  //           portfolioItemsPriceDetails[
-  //             portfolioItems.indexOf(currentPortfolioItem)
-  //           ]?.lastSalePrice.slice(1)
-  //         ),
-  //     0
-  //   )
-  //   .toFixed(2);
-  const getBoughtBalance = () => {};
   // portfolioItems
   //   .reduce(
   //     (total, currentPortfolioItem) =>
@@ -75,74 +75,179 @@ const PortfolioScreen = () => {
   //     0
   //   )
   //   .toFixed(2);
-  const getAllTimeChange = () => {
-    // const boughtBalance = getBoughtBalance();
-    // const currentBalance = getCurrentBalance();
-    // return (currentBalance - boughtBalance).toFixed(2);
+  const calculateAllTimeChange = () => {
+    setAllTimeChange(parseFloat((currentBalance - boughtBalance).toFixed(2)));
   };
-  const getAllTimePercentage = () => {
-    // const boughtBalance = getBoughtBalance();
-    // if (boughtBalance == 0) return;
-    // return ((getAllTimeChange() / boughtBalance) * 100).toFixed(2);
+  const calculateAllTimePercentage = () => {
+    if (boughtBalance == 0) {
+      return;
+    }
+    setAllTimePercentage(
+      parseFloat(
+        (((currentBalance - boughtBalance) / boughtBalance) * 100).toFixed(2)
+      )
+    );
   };
   const percentageColor =
-    getAllTimePercentage() > 0
+    allTimePercentage > 0
       ? "#16c784"
-      : getAllTimePercentage() < 0
+      : allTimePercentage < 0
       ? "#ea3943"
       : "grey";
+  const calculateOverallData = (priceList) => {
+    setPortfolioItemsPriceDetails(priceList);
+    setFinishCaluculating(false);
+    calculateCurrentBalance(priceList);
+    calculateBoughtBalance();
+    // calculateAllTimePercentage();
+    // calculateAllTimeChange();
+    setFinishCaluculating(true);
+  };
+  const calculateAllThings = async () => {
+    let list = [];
+    for (let i = 0; i < portfolioItems.length; i++) {
+      // wait for the promise to resolve before advancing the for loop
+      list.push(portfolioItems[i].symbol);
+    }
+    //get the list of symbol of bought price
+
+    const priceList = await getMultipleStocksPriceAndPercentChange(list);
+    calculateOverallData(priceList);
+  };
+  useEffect(() => {
+    if (finishCaluculating) {
+      calculateAllTimePercentage();
+      calculateAllTimeChange();
+    }
+  }, [finishCaluculating]);
 
   useEffect(() => {
-    getPortfolioItemsPriceDetails();
+    calculateAllThings();
   }, [portfolioItems]);
   useEffect(() => {
     // getPortfolioItemsPriceDetails();
   }, [portfolioItemsPriceDetails]);
   useEffect(() => {
-    // getPortfolioItemsPriceDetails();
-    console.log(portfolioItems);
+    // call a final calculate function
+    calculateAllThings();
+  }, []);
+  useEffect(() => {
+    LogBox.ignoreLogs(["VirtualizedLists should never be nested"]);
   }, []);
   // useEffect(() => {
   //   setPortfolioItemsPriceDetails([]);
   //   setportfolioItems([]);
   //   AsyncStorage.clear();
   // }, []);
+  const onAddBtnPressed = (data) => {
+    console.log(data);
+  };
+  const showDeleteModal = (basicData, priceData) => {
+    setModalVisible();
+  };
   return (
     <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
       <View style={styles.container}>
+        <View style={styles.centeredView}>
+          <Modal
+            animationType="slide"
+            transparent={true}
+            visible={modalVisible}
+            onRequestClose={() => {
+              alert("Modal has been closed.");
+              setModalVisible(!modalVisible);
+            }}
+          >
+            <View style={styles.centeredView}>
+              <View style={styles.modalView}>
+                <View style={{ flex: 1 }}>
+                  <TouchableOpacity
+                    onPress={() => setModalVisible(!modalVisible)}
+                  >
+                    <Entypo
+                      name="cross"
+                      size={30}
+                      color="black"
+                      style={{ alignSelf: "flex-start", marginBottom: 15 }}
+                    />
+                  </TouchableOpacity>
+                  <Text
+                    style={{
+                      ...styles.modalText,
+                      fontWeight: "bold",
+                      alignSelf: "center",
+                    }}
+                  >
+                    股票明細
+                  </Text>
+                  <Text style={styles.modalText}>購入股票:</Text>
+                  <Text style={styles.modalText}>購入價錢: $</Text>
+                  <Text style={styles.modalText}>購入股數: </Text>
+                  <Text style={styles.modalText}>購入日期:</Text>
+                  <Pressable
+                    style={[styles.button, styles.buttonClose]}
+                    onPress={() => console.log("hi")}
+                  >
+                    <Text style={styles.textStyle}>確定刪除股票</Text>
+                  </Pressable>
+                </View>
+              </View>
+            </View>
+          </Modal>
+        </View>
         {/* <AddItemsBar /> */}
-        <NewSearchBar />
-        <View style={{ padding: 10 }}>
-          <View style={styles.balanceHeader}>
-            <View>
-              <Text style={styles.currentBalance}>現有資金</Text>
-              <Text style={styles.totalAmount}>${getCurrentBalance()}</Text>
-              <Text style={{ ...styles.allTimeChange, color: percentageColor }}>
-                {getAllTimeChange()} (總利潤)
-              </Text>
+        <NewSearchBar func={onAddBtnPressed} />
+        <ScrollView style={{ padding: 10 }}>
+          {finishCaluculating ? (
+            <View style={styles.balanceHeader}>
+              <View>
+                <Text style={styles.currentBalance}>現有資金</Text>
+                <Text style={styles.totalAmount}>
+                  {/* ${calculateCurrentBalance()}
+                   */}
+                  ${currentBalance}
+                </Text>
+                <Text
+                  style={{
+                    ...styles.allTimeChange,
+                    color: percentageColor,
+                  }}
+                >
+                  {allTimeChange > 0 ? "+$" : allTimeChange < 0 ? "-$" : ""}
+                  {Math.abs(allTimeChange)}{" "}
+                  {allTimeChange > 0
+                    ? "(總利潤)"
+                    : allTimeChange < 0
+                    ? "(總虧損)"
+                    : ""}
+                </Text>
+              </View>
+              <View
+                style={{
+                  ...styles.percentageBox,
+                  backgroundColor: percentageColor,
+                }}
+              >
+                <AntDesign
+                  name={
+                    allTimePercentage > 0
+                      ? "caretup"
+                      : allTimePercentage < 0
+                      ? "caretdown"
+                      : "minus"
+                  }
+                  size={17}
+                  color="white"
+                />
+                <Text style={styles.percentageChange}>
+                  {allTimePercentage}%
+                </Text>
+              </View>
             </View>
-            <View
-              style={{
-                ...styles.percentageBox,
-                backgroundColor: percentageColor,
-              }}
-            >
-              <AntDesign
-                name={
-                  getAllTimePercentage() > 0
-                    ? "caretup"
-                    : getAllTimePercentage() < 0
-                    ? "caretdown"
-                    : "minus"
-                }
-                size={17}
-                color="white"
-              />
-              <Text style={styles.percentageChange}>
-                {getAllTimePercentage()}%
-              </Text>
-            </View>
-          </View>
+          ) : (
+            <></>
+          )}
+
           <Text style={styles.yourAssets}>資產細節</Text>
 
           {/* bottom of flat list  */}
@@ -168,15 +273,21 @@ const PortfolioScreen = () => {
                   <Text style={styles.colText}>買入價</Text>
                   <Text style={styles.colText}>現價</Text>
                 </View>
-                <FlatList
-                  data={portfolioItems}
-                  renderItem={({ item, index }) => (
-                    <PortfolioItem
-                      symbol={item.symbol}
-                      portfolioItems={portfolioItems[index]}
-                    />
-                  )}
-                />
+                {portfolioItemsPriceDetails?.length > 0 ? (
+                  <FlatList
+                    data={portfolioItemsPriceDetails}
+                    renderItem={({ item, index }) => (
+                      <PortfolioItem
+                        symbol={portfolioItems[index].symbol}
+                        portfolioItem={portfolioItems[index]}
+                        priceDetails={portfolioItemsPriceDetails[index]}
+                        setModal={showDeleteModal}
+                      />
+                    )}
+                  />
+                ) : (
+                  <></>
+                )}
               </>
             ) : (
               <Text
@@ -198,7 +309,7 @@ const PortfolioScreen = () => {
           >
             <Text style={styles.addNewAssets}>新增資產</Text>
           </TouchableOpacity>
-        </View>
+        </ScrollView>
       </View>
     </TouchableWithoutFeedback>
   );
@@ -278,5 +389,47 @@ const styles = StyleSheet.create({
   allTimeChange: {
     fontSize: 18,
     fontWeight: "500",
+  },
+  centeredView: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalView: {
+    height: 400,
+    width: 300,
+    margin: 40,
+    backgroundColor: "white",
+    borderRadius: 20,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 5,
+      height: 10,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+    padding: 20,
+  },
+  button: {
+    borderRadius: 20,
+    padding: 10,
+    elevation: 2,
+  },
+  buttonOpen: {
+    backgroundColor: "#F194FF",
+  },
+  buttonClose: {
+    backgroundColor: "#ea3943",
+  },
+  textStyle: {
+    color: "white",
+    fontWeight: "bold",
+    textAlign: "center",
+  },
+  modalText: {
+    marginBottom: 15,
+    textAlign: "center",
+    alignSelf: "flex-start",
   },
 });

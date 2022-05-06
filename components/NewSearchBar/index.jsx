@@ -31,7 +31,7 @@ const backButtonOpacity = new Value(0);
 const contentTraslateY = new Value(height);
 const contentOpacity = new Value(0);
 
-const NewSearchBar = ({ title, navigation }) => {
+const NewSearchBar = ({ title, navigation, func }) => {
   const [isFocused, setisFocused] = useState(false);
   const [keyword, setkeyword] = useState("");
   const [searchItems, setSearchItems] = useState([]);
@@ -49,6 +49,9 @@ const NewSearchBar = ({ title, navigation }) => {
   //   });
   //   dispatch(searchRoutes(searchResult));
   // };
+  useEffect(() => {
+    func("hi");
+  }, []);
 
   const fetchSymbolLookUp = async (keyword) => {
     setNoResult(false);

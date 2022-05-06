@@ -125,16 +125,15 @@ export const getAllStocks = async () => {
 };
 
 export const getMultipleStocksPriceAndPercentChange = async (
-  stockItemsList
+  stockSymbolList
 ) => {
   try {
     let priceList;
     let stringList = "";
-    stockItemsList.forEach((element) => {
-      console.log(element.symbol);
-      stringList = stringList.concat("symbol=", element.symbol, "%7cstocks&");
+    stockSymbolList.forEach((element) => {
+      // console.log(element.symbol);
+      stringList = stringList.concat("symbol=", element, "%7cstocks&");
     });
-    console.log(stringList + "stringList");
     let link = `https://api.nasdaq.com/api/quote/watchlist?${stringList}`;
     console.log("link: " + link);
     const response = await axios.get(
@@ -142,15 +141,12 @@ export const getMultipleStocksPriceAndPercentChange = async (
       link
       // https://api.nasdaq.com/api/quote/watchlist?symbol=TSLA%7cstocks&symbol=GOOG%7cstocks&symbol=TSLA%7cstocks&
     );
-    console.log("priceList");
-    priceList = response.data.data.map((el, index) => {
-      el.id = stockItemsList[index].id;
-      return el;
-    });
-    console.log(priceList);
-    console.log("hi");
-
-    return;
+    // console.log("priceList");
+    // priceList = response.data.data.map((el, index) => {
+    //   el.id = stockItemsList[index].id;
+    //   return el;
+    // });
+    return response.data.data;
   } catch (e) {
     console.log(e);
   }
@@ -164,7 +160,6 @@ export const getMultipleStocksPriceAndPercentChange2 = async (
     let priceList = [];
     let stringList = "";
     stockItemsList.forEach((element) => {
-      console.log(element.symbol);
       stringList = stringList.concat("symbol=", element.symbol, "%7cstocks&");
     });
     console.log(stringList + "stringList");
